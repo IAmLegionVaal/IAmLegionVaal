@@ -4,12 +4,11 @@
 
 ### L2 IT Support Engineer | Windows | Microsoft 365 | Active Directory | Networking
 
-Based in Vanderbijlpark, South Africa, with 7+ years of technical support experience across endpoint support, infrastructure, networking and cybersecurity.
+IT support professional with 7+ years of technical support experience across endpoint support, infrastructure, networking and cybersecurity.
 
 I build practical troubleshooting scripts and infrastructure labs that help technicians diagnose issues faster, collect better evidence, apply guarded repairs and reduce repetitive manual work.
 
 [![Email](https://img.shields.io/badge/Email-dewaldp84%40gmail.com-EA4335?style=for-the-badge&logo=gmail&logoColor=white)](mailto:dewaldp84@gmail.com)
-[![Website](https://img.shields.io/badge/Website-DelTrix%20Technology-0A66C2?style=for-the-badge&logo=googlechrome&logoColor=white)](https://www.deltrixtech.co.za)
 [![Projects](https://img.shields.io/badge/GitHub-Project%20Board-181717?style=for-the-badge&logo=github)](https://github.com/users/IAmLegionVaal/projects/3)
 
 ![PowerShell](https://img.shields.io/badge/PowerShell-Tools-blue?style=for-the-badge&logo=powershell)
