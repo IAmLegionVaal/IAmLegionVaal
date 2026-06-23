@@ -8,7 +8,6 @@ IT support professional with 7+ years of technical support experience across end
 
 I build practical troubleshooting scripts and infrastructure labs that help technicians diagnose issues faster, collect better evidence, apply guarded repairs and reduce repetitive manual work.
 
-[![Email](https://img.shields.io/badge/Email-dewaldp84%40gmail.com-EA4335?style=for-the-badge&logo=gmail&logoColor=white)](mailto:dewaldp84@gmail.com)
 [![Projects](https://img.shields.io/badge/GitHub-Project%20Board-181717?style=for-the-badge&logo=github)](https://github.com/users/IAmLegionVaal/projects/3)
 
 ![PowerShell](https://img.shields.io/badge/PowerShell-Tools-blue?style=for-the-badge&logo=powershell)
