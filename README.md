@@ -55,7 +55,9 @@ A menu-driven PowerShell toolkit for common Windows, Microsoft 365, OneDrive, ne
 
 ## ✅ Projects Done
 
-The following hands-on Windows infrastructure labs were completed, validated and documented with implementation notes, troubleshooting observations and findings.
+The following hands-on Windows infrastructure labs were completed, validated and documented with implementation notes, repairs or remediation where required, troubleshooting observations and findings.
+
+➡️ [View the completed lab repairs index](COMPLETED-LAB-REPAIRS.md)
 
 ### Active Directory and Group Policy
 
