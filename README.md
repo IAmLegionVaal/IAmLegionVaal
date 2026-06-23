@@ -1,6 +1,6 @@
 <div align="center">
 
-# Dewald Pretorius
+# IAmLegionVaal
 
 ### L2 IT Support Engineer | Windows | Microsoft 365 | Active Directory | Networking
 
