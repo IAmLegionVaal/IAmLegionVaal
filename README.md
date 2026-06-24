@@ -26,7 +26,6 @@ I build practical troubleshooting scripts and infrastructure labs that help tech
 
 A menu-driven PowerShell toolkit for Windows 10 and Windows 11 support, covering helpdesk, desktop support and advanced infrastructure troubleshooting.
 
-**Current version:** 10.1
 
 ✅ Windows diagnostics and repair  
 ✅ Microsoft 365, Outlook, Teams and OneDrive troubleshooting  
