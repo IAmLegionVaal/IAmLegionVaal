@@ -85,12 +85,30 @@ try {
     New-Item -Path $workRoot -ItemType Directory -Force | Out-Null
 
     $listUri = "https://api.github.com/users/$Owner/repos?type=owner&sort=full_name&direction=asc&per_page=$PerPage&page=$Page"
-    $repositories = @(Invoke-RestMethod -Uri $listUri -Headers $headers -Method Get)
+    $response = Invoke-RestMethod -Uri $listUri -Headers $headers -Method Get
+    $repositories = [System.Collections.Generic.List[object]]::new()
+
+    # Invoke-RestMethod can return a JSON array as one pipeline object. Enumerate
+    # the response explicitly so each repository is processed independently.
+    foreach ($repositoryItem in $response) {
+        $repositories.Add($repositoryItem)
+    }
+
+    if ($repositories.Count -gt $PerPage) {
+        throw "Repository enumeration returned $($repositories.Count) items for a page size of $PerPage."
+    }
 
     foreach ($repository in $repositories) {
         $repoName = [string]$repository.name
         $fullName = [string]$repository.full_name
         $defaultBranch = [string]$repository.default_branch
+
+        if ([string]::IsNullOrWhiteSpace($repoName) -or
+            [string]::IsNullOrWhiteSpace($fullName) -or
+            $fullName -notmatch '^[^/]+/[^/]+$') {
+            throw 'GitHub returned an invalid repository object during enumeration.'
+        }
+
         $repoWork = Join-Path $workRoot ($repoName -replace '[^A-Za-z0-9._-]', '_')
         $zipPath = "$repoWork.zip"
         $repoStarted = Get-Date
@@ -142,7 +160,8 @@ try {
                 $relativePath = $file.FullName.Substring($repoRoot.FullName.Length + 1)
 
                 $mutationPattern = '(?im)\b(Remove-Item|Set-ItemProperty|New-LocalUser|Set-LocalUser|Add-LocalGroupMember|Restart-Service|Stop-Service|Start-Service|Set-Service|Remove-AppxPackage|Add-AppxPackage|Restart-Computer|Clear-DnsClientCache)\b'
-                if ($content -match $mutationPattern -and $content -notmatch '(?is)CmdletBinding\s*\([^)]*SupportsShouldProcess') {
+                if ($content -match $mutationPattern -and
+                    $content -notmatch '(?is)CmdletBinding\s*\([^)]*SupportsShouldProcess') {
                     Add-Finding -Repository $fullName -Severity Warning -Category PowerShellSafety `
                         -Path $relativePath -Message 'Mutating commands are present without SupportsShouldProcess/WhatIf support.'
                 }
@@ -186,18 +205,21 @@ try {
                 }
 
                 try {
-                    Get-Content -LiteralPath $file.FullName -Raw | ConvertFrom-Json -ErrorAction Stop | Out-Null
+                    Get-Content -LiteralPath $file.FullName -Raw |
+                        ConvertFrom-Json -ErrorAction Stop | Out-Null
                 }
                 catch {
                     Add-Finding -Repository $fullName -Severity Error -Category Json `
-                        -Path $file.FullName.Substring($repoRoot.FullName.Length + 1) -Message $_.Exception.Message
+                        -Path $file.FullName.Substring($repoRoot.FullName.Length + 1) `
+                        -Message $_.Exception.Message
                 }
             }
 
             foreach ($file in $yamlFiles) {
                 Invoke-ExternalCheck -Repository $fullName -Category Yaml `
                     -FilePath $file.FullName.Substring($repoRoot.FullName.Length + 1) `
-                    -Command 'python3' -Arguments @('-c', 'import sys,yaml; yaml.safe_load(open(sys.argv[1], encoding="utf-8"))', $file.FullName)
+                    -Command 'python3' `
+                    -Arguments @('-c', 'import sys,yaml; yaml.safe_load(open(sys.argv[1], encoding="utf-8"))', $file.FullName)
             }
 
             foreach ($file in $pythonFiles) {
@@ -254,8 +276,10 @@ try {
         }
     }
 
-    $repositoryResults | Export-Csv -LiteralPath (Join-Path $OutputPath 'repositories.csv') -NoTypeInformation -Encoding UTF8
-    $findings | Export-Csv -LiteralPath (Join-Path $OutputPath 'findings.csv') -NoTypeInformation -Encoding UTF8
+    $repositoryResults |
+        Export-Csv -LiteralPath (Join-Path $OutputPath 'repositories.csv') -NoTypeInformation -Encoding UTF8
+    $findings |
+        Export-Csv -LiteralPath (Join-Path $OutputPath 'findings.csv') -NoTypeInformation -Encoding UTF8
 
     [ordered]@{
         Owner = $Owner
@@ -268,7 +292,8 @@ try {
         InfoCount = @($findings | Where-Object Severity -eq Info).Count
         Repositories = $repositoryResults
         Findings = $findings
-    } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $OutputPath 'report.json') -Encoding UTF8
+    } | ConvertTo-Json -Depth 8 |
+        Set-Content -LiteralPath (Join-Path $OutputPath 'report.json') -Encoding UTF8
 
     $summary = @(
         "# Portfolio audit — page $Page"
@@ -289,7 +314,8 @@ try {
     else {
         foreach ($finding in $errors) {
             $location = if ($finding.Path) { "$($finding.Path):$($finding.Line)" } else { 'repository' }
-            $summary += "- **$($finding.Repository)** — `$location` — $($finding.Category): $($finding.Message)"
+            $summary += ('- **{0}** — `{1}` — {2}: {3}' -f `
+                $finding.Repository, $location, $finding.Category, $finding.Message)
         }
     }
 
