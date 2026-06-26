@@ -57,6 +57,7 @@ jobs:
           IAmLegionVaal/macOS-Printer-and-CUPS-Diagnostics-Toolkit|fix/audit-shell-parser
           REPOSITORIES
 
+          find "$RUNNER_TEMP/repos" -type d -name .git -prune -exec rm -rf {} +
           cat "$RUNNER_TEMP/shellcheck-findings.txt"
 
       - name: Upload findings
@@ -64,5 +65,13 @@ jobs:
         with:
           name: shellcheck-branch-findings
           path: ${{ runner.temp }}/shellcheck-findings.txt
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload checked branch sources
+        uses: actions/upload-artifact@v4
+        with:
+          name: shellcheck-branch-sources
+          path: ${{ runner.temp }}/repos
           if-no-files-found: error
           retention-days: 7
