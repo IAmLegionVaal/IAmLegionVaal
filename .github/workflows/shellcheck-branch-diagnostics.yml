@@ -1,0 +1,77 @@
+name: ShellCheck Branch Diagnostics
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/shellcheck-branch-diagnostics.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ShellCheck
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+
+      - name: Scan affected branches recursively
+        shell: bash
+        run: |
+          set -uo pipefail
+          mkdir -p "$RUNNER_TEMP/repos"
+          : > "$RUNNER_TEMP/shellcheck-findings.txt"
+
+          while IFS='|' read -r repository branch; do
+            [ -n "$repository" ] || continue
+            target="$RUNNER_TEMP/repos/${repository##*/}"
+            printf '\n===== %s @ %s =====\n' "$repository" "$branch" | tee -a "$RUNNER_TEMP/shellcheck-findings.txt"
+
+            if ! git clone --quiet --depth 1 --branch "$branch" "https://github.com/${repository}.git" "$target"; then
+              echo 'CLONE_FAILED' | tee -a "$RUNNER_TEMP/shellcheck-findings.txt"
+              continue
+            fi
+
+            mapfile -d '' files < <(find "$target" -type f -name '*.sh' -print0)
+            if [ "${#files[@]}" -eq 0 ]; then
+              echo 'NO_SHELL_FILES' | tee -a "$RUNNER_TEMP/shellcheck-findings.txt"
+              continue
+            fi
+
+            shellcheck -f gcc -x "${files[@]}" 2>&1 | tee -a "$RUNNER_TEMP/shellcheck-findings.txt" || true
+          done <<'REPOSITORIES'
+          IAmLegionVaal/Linux-Boot-and-Kernel-Diagnostics-Toolkit|fix/audit-shell-parser
+          IAmLegionVaal/Linux-CUPS-and-Print-Service-Diagnostics-Toolkit|fix/audit-shell-parser
+          IAmLegionVaal/Linux-Certificate-and-TLS-Health-Checker|fix/audit-shell-parser
+          IAmLegionVaal/Linux-Cron-and-Systemd-Timer-Auditor|fix/audit-shell-parser
+          IAmLegionVaal/Linux-Firewall-and-NFTables-Troubleshooter|fix/audit-shell-parser
+          IAmLegionVaal/Linux-NFS-SMB-and-Mount-Troubleshooter|fix-shell-parser
+          IAmLegionVaal/Linux-Process-and-Resource-Leak-Analyzer|fix/audit-shell-parser
+          IAmLegionVaal/Linux-SELinux-and-AppArmor-Troubleshooter|fix/audit-shell-parser
+          IAmLegionVaal/Linux-SSH-and-Remote-Access-Troubleshooter|fix/audit-shell-parser
+          IAmLegionVaal/macOS-External-Display-and-Docking-Station-Diagnostics|fix/audit-shell-parser
+          IAmLegionVaal/macOS-Finder-Spotlight-and-File-Index-Diagnostics|fix/audit-shell-parser
+          IAmLegionVaal/macOS-Printer-and-CUPS-Diagnostics-Toolkit|fix/audit-shell-parser
+          REPOSITORIES
+
+          find "$RUNNER_TEMP/repos" -type d -name .git -prune -exec rm -rf {} +
+          cat "$RUNNER_TEMP/shellcheck-findings.txt"
+
+      - name: Upload findings
+        uses: actions/upload-artifact@v4
+        with:
+          name: shellcheck-branch-findings
+          path: ${{ runner.temp }}/shellcheck-findings.txt
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload checked branch sources
+        uses: actions/upload-artifact@v4
+        with:
+          name: shellcheck-branch-sources
+          path: ${{ runner.temp }}/repos
+          if-no-files-found: error
+          retention-days: 7
