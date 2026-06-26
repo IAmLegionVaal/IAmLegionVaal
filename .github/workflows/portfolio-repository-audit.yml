@@ -1,0 +1,105 @@
+name: Portfolio Repository Audit
+
+on:
+  pull_request:
+    paths:
+      - 'tools/repository-audit/**'
+      - '.github/workflows/portfolio-repository-audit.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/repository-audit/**'
+      - '.github/workflows/portfolio-repository-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-scanner:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse audit scripts
+        shell: pwsh
+        run: |
+          $failed = $false
+          Get-ChildItem tools/repository-audit -Filter '*.ps1' -File -Recurse | ForEach-Object {
+              $tokens = $null
+              $errors = $null
+              [System.Management.Automation.Language.Parser]::ParseFile(
+                  $_.FullName,
+                  [ref]$tokens,
+                  [ref]$errors
+              ) | Out-Null
+
+              if ($errors.Count -gt 0) {
+                  $failed = $true
+                  $errors | ForEach-Object {
+                      Write-Error "$($_.Extent.File):$($_.Extent.StartLineNumber): $($_.Message)"
+                  }
+              }
+          }
+
+          if ($failed) {
+              throw 'PowerShell parser validation failed.'
+          }
+
+      - name: Run PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
+          $findings = Invoke-ScriptAnalyzer -Path tools/repository-audit -Recurse -Severity Error
+          if ($findings) {
+              $findings | Format-Table -AutoSize | Out-String | Write-Host
+              throw 'PSScriptAnalyzer reported errors.'
+          }
+
+  audit:
+    if: github.event_name != 'pull_request'
+    needs: validate-scanner
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        page: [1, 2, 3, 4, 5]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install audit dependencies
+        shell: pwsh
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
+          python3 -m pip install --disable-pip-version-check --quiet pyyaml
+
+      - name: Audit repository page
+        id: audit
+        continue-on-error: true
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ./tools/repository-audit/Invoke-PortfolioAudit.ps1 `
+              -Owner '${{ github.repository_owner }}' `
+              -Page ${{ matrix.page }} `
+              -PerPage 100 `
+              -OutputPath '${{ runner.temp }}/portfolio-audit-page-${{ matrix.page }}'
+
+      - name: Upload page report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: portfolio-audit-page-${{ matrix.page }}
+          path: ${{ runner.temp }}/portfolio-audit-page-${{ matrix.page }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Fail when the audit found static errors
+        if: steps.audit.outcome == 'failure'
+        shell: pwsh
+        run: throw 'Static errors were detected. Download the page artifact for details.'
