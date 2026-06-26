@@ -58,7 +58,6 @@ jobs:
           }
 
   audit:
-    if: github.event_name != 'pull_request'
     needs: validate-scanner
     runs-on: ubuntu-latest
     timeout-minutes: 180
